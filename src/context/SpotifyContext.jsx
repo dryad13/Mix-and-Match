@@ -1,0 +1,318 @@
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { getCamelotKey } from '../utils/camelot';
+
+const SpotifyContext = createContext();
+
+const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
+// Automatically resolve Netlify redirect URI or use local config
+const REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || 
+                     (typeof window !== 'undefined' ? `${window.location.origin}/` : 'http://localhost:5173/');
+
+const SCOPES = [
+  'playlist-read-private',
+  'playlist-read-collaborative',
+  'playlist-modify-public',
+  'playlist-modify-private',
+  'user-library-read'
+].join(' ');
+
+export function SpotifyProvider({ children }) {
+  const [token, setToken] = useState(null);
+  const [userPlaylists, setUserPlaylists] = useState([]);
+  const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false);
+  const [spotifyUser, setSpotifyUser] = useState(null);
+
+  // Authentication: Check URL hash or localStorage for access token
+  useEffect(() => {
+    // 1. Check local storage
+    const storedToken = localStorage.getItem('spotify_access_token');
+    const storedExpiry = localStorage.getItem('spotify_token_expiry');
+    const now = Date.now();
+
+    if (storedToken && storedExpiry && now < Number(storedExpiry)) {
+      setToken(storedToken);
+      fetchUserProfile(storedToken);
+      // Set timeout for expiry
+      const remainingTime = Number(storedExpiry) - now;
+      setupTokenExpiryTimeout(remainingTime);
+    } else {
+      // Clean expired token if it exists
+      clearSession();
+      
+      // 2. Parse URL hash
+      const hash = window.location.hash;
+      if (hash) {
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get('access_token');
+        const expiresIn = params.get('expires_in');
+
+        if (accessToken) {
+          const expiryTime = Date.now() + Number(expiresIn) * 1000;
+          localStorage.setItem('spotify_access_token', accessToken);
+          localStorage.setItem('spotify_token_expiry', String(expiryTime));
+          setToken(accessToken);
+          fetchUserProfile(accessToken);
+          setupTokenExpiryTimeout(Number(expiresIn) * 1000);
+          
+          // Clear hash from address bar
+          window.history.pushState("", document.title, window.location.pathname + window.location.search);
+        }
+      }
+    }
+  }, []);
+
+  const setupTokenExpiryTimeout = (delayMs) => {
+    setTimeout(() => {
+      alert("Spotify access token expired. Please log in again.");
+      clearSession();
+    }, delayMs);
+  };
+
+  const clearSession = () => {
+    localStorage.removeItem('spotify_access_token');
+    localStorage.removeItem('spotify_token_expiry');
+    setToken(null);
+    setSpotifyUser(null);
+    setUserPlaylists([]);
+  };
+
+  const handleLogin = () => {
+    if (!CLIENT_ID || CLIENT_ID === 'your_spotify_client_id_here') {
+      alert("Please configure your VITE_SPOTIFY_CLIENT_ID environment variable in .env.local!");
+      return;
+    }
+    const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=${encodeURIComponent(SCOPES)}&show_dialog=true`;
+    window.location.href = authUrl;
+  };
+
+  const handleLogout = () => {
+    clearSession();
+  };
+
+  const fetchUserProfile = async (authToken) => {
+    try {
+      const res = await fetch('https://api.spotify.com/v1/me', {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSpotifyUser(data);
+      } else if (res.status === 401) {
+        clearSession();
+      }
+    } catch (err) {
+      console.error("Error fetching user profile:", err);
+    }
+  };
+
+  // Fetch lists of playlists from user
+  const fetchPlaylists = async () => {
+    if (!token) return;
+    setIsLoadingPlaylists(true);
+    try {
+      const res = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserPlaylists(data.items || []);
+      }
+    } catch (err) {
+      console.error("Error fetching playlists:", err);
+    } finally {
+      setIsLoadingPlaylists(false);
+    }
+  };
+
+  // Fetch track metadata + audio features (BPM, keys)
+  const fetchTrackAudioFeatures = async (trackIds) => {
+    if (!token || !trackIds || trackIds.length === 0) return {};
+    
+    // Chunk requests into batches of 100 as per Spotify constraints
+    const batches = [];
+    for (let i = 0; i < trackIds.length; i += 100) {
+      batches.push(trackIds.slice(i, i + 100));
+    }
+
+    try {
+      const featuresMap = {};
+      for (const batch of batches) {
+        const idsStr = batch.join(',');
+        const res = await fetch(`https://api.spotify.com/v1/audio-features?ids=${idsStr}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.audio_features) {
+            data.audio_features.forEach((feat) => {
+              if (feat) {
+                const camelot = getCamelotKey(feat.key, feat.mode);
+                featuresMap[feat.id] = {
+                  bpm: Math.round(feat.tempo),
+                  key: feat.key,
+                  mode: feat.mode,
+                  camelotCode: camelot.code,
+                  keyName: camelot.name,
+                  keyFullName: camelot.fullName,
+                  energy: feat.energy,
+                  danceability: feat.danceability,
+                  valence: feat.valence
+                };
+              }
+            });
+          }
+        }
+      }
+      return featuresMap;
+    } catch (err) {
+      console.error("Error fetching audio features:", err);
+      return {};
+    }
+  };
+
+  // Fetch tracks for a specific playlist
+  const getPlaylistTracks = async (playlistId) => {
+    if (!token) return [];
+    try {
+      let tracks = [];
+      let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
+      
+      // Page through all tracks (limit to max 300 tracks for responsive mixing)
+      let pages = 0;
+      while (nextUrl && pages < 3) {
+        const res = await fetch(nextUrl, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) break;
+        
+        const data = await res.json();
+        tracks = [...tracks, ...(data.items || [])];
+        nextUrl = data.next;
+        pages++;
+      }
+
+      // Filter null tracks and map them
+      const cleanTracks = tracks
+        .filter(item => item && item.track)
+        .map(item => ({
+          id: item.track.id,
+          name: item.track.name,
+          artist: item.track.artists.map(a => a.name).join(', '),
+          album: item.track.album.name,
+          albumArt: item.track.album.images?.[0]?.url || '',
+          durationMs: item.track.duration_ms
+        }));
+
+      // Fetch keys and BPMs in batch
+      const trackIds = cleanTracks.map(t => t.id).filter(id => !!id);
+      const features = await fetchTrackAudioFeatures(trackIds);
+
+      // Merge features into track object
+      return cleanTracks.map(t => ({
+        ...t,
+        ...(features[t.id] || { bpm: 120, camelotCode: '8A', keyName: 'Am', keyFullName: 'A Minor', energy: 0.5, danceability: 0.5, valence: 0.5 })
+      }));
+
+    } catch (err) {
+      console.error("Error getting playlist tracks:", err);
+      return [];
+    }
+  };
+
+  // Search Spotify tracks
+  const searchTracks = async (query) => {
+    if (!token || !query) return [];
+    try {
+      const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=20`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const rawTracks = data.tracks?.items || [];
+        const cleanTracks = rawTracks.map(track => ({
+          id: track.id,
+          name: track.name,
+          artist: track.artists.map(a => a.name).join(', '),
+          album: track.album.name,
+          albumArt: track.album.images?.[0]?.url || '',
+          durationMs: track.duration_ms
+        }));
+
+        const trackIds = cleanTracks.map(t => t.id);
+        const features = await fetchTrackAudioFeatures(trackIds);
+
+        return cleanTracks.map(t => ({
+          ...t,
+          ...(features[t.id] || { bpm: 120, camelotCode: '8A', keyName: 'Am', keyFullName: 'A Minor', energy: 0.5, danceability: 0.5, valence: 0.5 })
+        }));
+      }
+      return [];
+    } catch (err) {
+      console.error("Error searching tracks:", err);
+      return [];
+    }
+  };
+
+  // Create playlist and add tracks
+  const exportPlaylist = async (name, trackIds) => {
+    if (!token || !spotifyUser || !trackIds || trackIds.length === 0) return null;
+    try {
+      // 1. Create playlist
+      const createRes = await fetch(`https://api.spotify.com/v1/users/${spotifyUser.id}/playlists`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: name,
+          description: 'Harmonically sorted playlist created with Spotify Harmonic DJ Studio.',
+          public: false
+        })
+      });
+
+      if (!createRes.ok) return null;
+      const playlist = await createRes.json();
+
+      // 2. Add tracks (limit 100 per call, we chunk it)
+      const uris = trackIds.map(id => `spotify:track:${id}`);
+      for (let i = 0; i < uris.length; i += 100) {
+        const chunk = uris.slice(i, i + 100);
+        await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ uris: chunk })
+        });
+      }
+
+      return playlist;
+    } catch (err) {
+      console.error("Error exporting playlist:", err);
+      return null;
+    }
+  };
+
+  return (
+    <SpotifyContext.Provider value={{
+      token,
+      spotifyUser,
+      userPlaylists,
+      isLoadingPlaylists,
+      handleLogin,
+      handleLogout,
+      fetchPlaylists,
+      getPlaylistTracks,
+      searchTracks,
+      exportPlaylist
+    }}>
+      {children}
+    </SpotifyContext.Provider>
+  );
+}
+
+export function useSpotify() {
+  return useContext(SpotifyContext);
+}

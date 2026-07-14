@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Harmonic DJ Studio & Camelot Chess Board</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        spotifyGreen: '#1DB954',
+                        spotifyDark: '#121212',
+                        spotifyBlack: '#0b0b0b',
+                        cardBg: '#181818',
+                        borderBg: '#282828',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b0b0b;
+        }
+        h1, h2, h3, h4, .font-heading {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0b0b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #282828;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #1DB954;
+        }
+        /* Connection Path Dash Animation */
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -20;
+            }
+        }
+        .animated-vector-line {
+            stroke-dasharray: 6, 4;
+            animation: dash 1.5s linear infinite;
+        }
+    </style>
+</head>
+<body class="text-zinc-100 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Top Header -->
+    <header class="border-b border-borderBg bg-spotifyDark/90 backdrop-blur-md sticky top-0 z-50 px-4 py-3 lg:px-8">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-spotifyGreen to-emerald-700 flex items-center justify-center shadow-lg shadow-spotifyGreen/20">
+                    <i class="fa-solid fa-compact-disc text-xl text-white animate-spin-slow"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">SPOTIFY HARMONIC STUDIO</h1>
+                    <p class="text-xs text-zinc-400 font-medium flex items-center gap-1.5">
+                        <i class="fa-brands fa-spotify text-spotifyGreen text-sm"></i>
+                        Camelot Wheel Chess-Move Modulator & Audio Transition Sandbox
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <span class="hidden sm:flex text-xs px-3 py-1 bg-spotifyBlack border border-borderBg rounded-full text-zinc-400 items-center gap-2">
+                    <span class="h-2 w-2 rounded-full bg-spotifyGreen animate-ping"></span> Realtime Synth Core Ready
+                </span>
+                <button id="unmute-btn" onclick="initAudioEngine()" class="px-4 py-1.5 bg-gradient-to-r from-spotifyGreen to-emerald-600 hover:from-emerald-500 hover:to-spotifyGreen text-spotifyBlack font-bold text-xs rounded-full transition-all duration-300 shadow-lg shadow-spotifyGreen/20 flex items-center gap-2">
+                    <i id="unmute-icon" class="fa-solid fa-volume-high"></i> <span id="unmute-text">Activate Studio Sound</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 lg:py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- LEFT COLUMN: The Wheel & Interactive Chess Path Visualizer (lg:col-span-6) -->
+        <div class="lg:col-span-6 flex flex-col gap-6">
+            
+            <!-- Dynamic Camelot Wheel Card -->
+            <div class="bg-cardBg border border-borderBg rounded-2xl p-4 lg:p-6 shadow-xl relative overflow-hidden flex flex-col items-center">
+                
+                <div class="absolute top-4 left-4 z-10 flex flex-col gap-1">
+                    <span class="text-[10px] uppercase tracking-widest text-spotifyGreen font-bold bg-spotifyBlack px-2.5 py-1 rounded-md border border-borderBg">
+                        Live Chessboard Wheel
+                    </span>
+                </div>
+                
+                <!-- Target Deck Chooser (Deck Selection mode) -->
+                <div class="absolute top-4 right-4 z-10 flex bg-spotifyBlack p-1 rounded-full border border-borderBg">
+                    <button onclick="setSelectorTarget('A')" id="target-a-btn" class="px-3 py-1 text-xs font-semibold rounded-full transition-all duration-200 text-zinc-400">
+                        Edit Deck A (Start)
+                    </button>
+                    <button onclick="setSelectorTarget('B')" id="target-b-btn" class="px-3 py-1 text-xs font-semibold rounded-full transition-all duration-200 bg-spotifyGreen text-spotifyBlack font-bold">
+                        Edit Deck B (Target)
+                    </button>
+                </div>
+
+                <!-- SVG Interactive Camelot Wheel Container -->
+                <div class="relative w-full max-w-[430px] aspect-square my-6 flex items-center justify-center">
+                    <svg id="camelot-svg" viewBox="0 0 450 450" class="w-full h-full drop-shadow-[0_0_20px_rgba(0,0,0,0.8)] select-none">
+                        <!-- Slices are dynamically injected here via JavaScript -->
+                    </svg>
+                    
+                    <!-- Center Display Overlay -->
+                    <div class="absolute w-[100px] h-[100px] rounded-full bg-spotifyBlack border-2 border-borderBg flex flex-col items-center justify-center text-center shadow-inner pointer-events-none z-10">
+                        <span class="text-[8px] text-zinc-500 uppercase tracking-widest font-bold">MODE PATH</span>
+                        <div class="text-xs font-bold text-spotifyGreen tracking-tighter uppercase my-0.5" id="active-path-label">Bishop Step</div>
+                        <div class="text-[10px] text-zinc-300 font-mono font-semibold" id="center-bpm">126 BPM</div>
+                    </div>
+                </div>
+
+                <!-- Real-time Chess Move Legend / Metrics -->
+                <div class="w-full border-t border-borderBg pt-4">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs text-zinc-400 mb-1">
+                        <div class="flex items-center justify-center gap-1.5 bg-spotifyBlack py-1.5 rounded-lg border border-borderBg">
+                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-500 inline-block"></span>
+                            <span>Deck A (Outgoing)</span>
+                        </div>
+                        <div class="flex items-center justify-center gap-1.5 bg-spotifyBlack py-1.5 rounded-lg border border-borderBg">
+                            <span class="w-2.5 h-2.5 rounded-full bg-fuchsia-500 inline-block"></span>
+                            <span>Deck B (Incoming)</span>
+                        </div>
+                        <div class="flex items-center justify-center gap-1.5 bg-spotifyBlack py-1.5 rounded-lg border border-borderBg">
+                            <span class="w-2.5 h-2.5 rounded-full bg-spotifyGreen inline-block animate-pulse"></span>
+                            <span>Valid Step Target</span>
+                        </div>
+                        <div class="flex items-center justify-center gap-1.5 bg-spotifyBlack py-1.5 rounded-lg border border-borderBg">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block"></span>
+                            <span>Energy Dissonance</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHESS PLAYBOOK / LEGAL MOVES CONTROLLER -->
+            <div class="bg-cardBg border border-borderBg rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-3 border-b border-borderBg pb-3">
+                    <h3 class="text-sm font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-chess-board text-spotifyGreen animate-pulse"></i> Interactive DJ Chess Playbook
+                    </h3>
+                    <span class="text-[9px] bg-emerald-950/60 border border-emerald-800 text-spotifyGreen px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                        Real-time Rule Guide
+                    </span>
+                </div>
+                <p class="text-xs text-zinc-400 mb-4">Click a tactical DJ Chess move below. The system automatically recalculates Deck B's target key, animates the physical direction arrow on the wheel, and adapts the virtual audio loop frequencies.</p>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="playbook-moves-container">
+                    <!-- Dynamically populated via JavaScript for high accuracy -->
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Console, Dynamic Path Analyzer, and Spotify Integration (lg:col-span-6) -->
+        <div class="lg:col-span-6 flex flex-col gap-6">
+            
+            <!-- Virtual Mixing Console & Soundboard -->
+            <div class="bg-cardBg border border-borderBg rounded-2xl p-5 shadow-xl relative overflow-hidden">
+                <div class="absolute -right-12 -top-12 w-32 h-32 bg-spotifyGreen/5 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -left-12 -bottom-12 w-32 h-32 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="flex items-center justify-between border-b border-borderBg pb-4 mb-5">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-spotifyGreen"></i>
+                        <h2 class="text-base font-bold tracking-tight text-white uppercase">Harmonic Control Console</h2>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs text-zinc-400 font-semibold">BPM:</span>
+                            <input type="number" id="bpm-input" min="115" max="145" value="126" onchange="updateBpm(this.value)" class="w-16 bg-spotifyBlack border border-borderBg rounded-lg px-2 py-0.5 text-xs text-center text-spotifyGreen font-bold focus:outline-none focus:border-spotifyGreen">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Deck Modules Grid -->
+                <div class="grid grid-cols-2 gap-4 mb-6 relative">
+                    
+                    <!-- DECK A (Outgoing Track) -->
+                    <div id="deck-a-card" class="bg-spotifyBlack border border-cyan-500/40 rounded-xl p-4 transition-all duration-300 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1.5 h-full bg-cyan-500"></div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-bold text-cyan-400 tracking-wider uppercase">DECK A (Outgoing)</span>
+                            <span id="deck-a-camelot" class="text-xs bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded font-bold border border-cyan-500/20">8A</span>
+                        </div>
+                        <h3 id="deck-a-title" class="text-sm font-bold text-white truncate">Deep Hypnotic Acid</h3>
+                        <p id="deck-a-key-full" class="text-xs text-zinc-500">A Minor (Am)</p>
+                        
+                        <!-- Visualizer Sim A -->
+                        <div class="flex items-end gap-0.5 h-10 mt-3 border-t border-borderBg/40 pt-2" id="viz-a">
+                            <div class="w-full bg-cyan-500/30 rounded-t h-1 transition-all duration-100"></div>
+                            <div class="w-full bg-cyan-500/30 rounded-t h-2 transition-all duration-100"></div>
+                            <div class="w-full bg-cyan-500/30 rounded-t h-1.5 transition-all duration-100"></div>
+                            <div class="w-full bg-cyan-500/30 rounded-t h-3 transition-all duration-100"></div>
+                            <div class="w-full bg-cyan-500/30 rounded-t h-2 transition-all duration-100"></div>
+                            <div class="w-full bg-cyan-500/30 rounded-t h-1 transition-all duration-100"></div>
+                            <div class="w-full bg-cyan-500/30 rounded-t h-4 transition-all duration-100"></div>
+                            <div class="w-full bg-cyan-500/30 rounded-t h-2.5 transition-all duration-100"></div>
+                        </div>
+                    </div>
+
+                    <!-- DECK B (Incoming Track) -->
+                    <div id="deck-b-card" class="bg-spotifyBlack border border-borderBg rounded-xl p-4 transition-all duration-300 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-1.5 h-full bg-fuchsia-500"></div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-bold text-fuchsia-400 tracking-wider uppercase">DECK B (Incoming)</span>
+                            <span id="deck-b-camelot" class="text-xs bg-fuchsia-500/10 text-fuchsia-300 px-2 py-0.5 rounded font-bold border border-fuchsia-500/20">9A</span>
+                        </div>
+                        <h3 id="deck-b-title" class="text-sm font-bold text-white truncate">Industrial Chords</h3>
+                        <p id="deck-b-key-full" class="text-xs text-zinc-500">E Minor (Em)</p>
+                        
+                        <!-- Visualizer Sim B -->
+                        <div class="flex items-end gap-0.5 h-10 mt-3 border-t border-borderBg/40 pt-2" id="viz-b">
+                            <div class="w-full bg-fuchsia-500/30 rounded-t h-1 transition-all duration-100"></div>
+                            <div class="w-full bg-fuchsia-500/30 rounded-t h-1.5 transition-all duration-100"></div>
+                            <div class="w-full bg-fuchsia-500/30 rounded-t h-3 transition-all duration-100"></div>
+                            <div class="w-full bg-fuchsia-500/30 rounded-t h-2.5 transition-all duration-100"></div>
+                            <div class="w-full bg-fuchsia-500/30 rounded-t h-1.5 transition-all duration-100"></div>
+                            <div class="w-full bg-fuchsia-500/30 rounded-t h-4 transition-all duration-100"></div>
+                            <div class="w-full bg-fuchsia-500/30 rounded-t h-2.5 transition-all duration-100"></div>
+                            <div class="w-full bg-fuchsia-500/30 rounded-t h-1 transition-all duration-100"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Central Control Section -->
+                <div class="flex flex-col gap-4 bg-spotifyBlack p-4 rounded-xl border border-borderBg mb-4">
+                    <!-- Global Transport Controls -->
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-2">
+                            <button id="play-pause-btn" onclick="togglePlayState()" class="h-10 px-5 bg-spotifyGreen hover:bg-emerald-500 text-spotifyBlack font-bold rounded-full flex items-center gap-2 shadow-lg shadow-spotifyGreen/20 transition duration-200">
+                                <i id="play-icon" class="fa-solid fa-play"></i>
+                                <span id="play-text">Play Mix Audio Loop</span>
+                            </button>
+                            
+                            <button onclick="triggerCrashCymbal()" class="h-10 w-10 bg-cardBg hover:bg-zinc-800 border border-borderBg rounded-full flex items-center justify-center text-zinc-300 hover:text-white transition duration-200" title="Simulate Sweep Drop (Reverb Wave)">
+                                <i class="fa-solid fa-wind text-sm"></i>
+                            </button>
+                        </div>
+
+                        <!-- Music Elements Toggles -->
+                        <div class="flex items-center gap-2 text-xs">
+                            <button id="toggle-kick" onclick="toggleDrumPart('kick')" class="px-3 py-1.5 rounded-full bg-cyan-950/40 text-cyan-400 border border-cyan-500/30 font-semibold transition flex items-center gap-1.5">
+                                <span class="h-2 w-2 rounded-full bg-cyan-400 inline-block"></span> 4/4 House Kick
+                            </button>
+                            <button id="toggle-pads" onclick="toggleDrumPart('chords')" class="px-3 py-1.5 rounded-full bg-spotifyGreen/10 text-spotifyGreen border border-spotifyGreen/30 font-semibold transition flex items-center gap-1.5">
+                                <span class="h-2 w-2 rounded-full bg-spotifyGreen inline-block"></span> Synthesizer
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Club Crossfader -->
+                    <div class="mt-2">
+                        <div class="flex justify-between items-center text-xs font-bold tracking-wider text-zinc-500 uppercase mb-2">
+                            <span>Deck A (100% Vol)</span>
+                            <span class="text-zinc-400 font-semibold">Active Crossfader Blend</span>
+                            <span>Deck B (100% Vol)</span>
+                        </div>
+                        <div class="relative flex items-center">
+                            <input type="range" id="crossfader" min="0" max="100" value="0" oninput="onCrossfaderMove(this.value)" class="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-spotifyGreen">
+                        </div>
+                        <div class="flex justify-between items-center text-[10px] text-zinc-500 mt-2">
+                            <span>Slide to smoothly crossfade frequencies from Deck A to Deck B</span>
+                            <button onclick="resetCrossfaderCenter()" class="text-spotifyGreen hover:text-emerald-400 font-bold">Center (50% / 50%)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DYNAMIC MOVES ANALYZER -->
+            <div class="bg-cardBg border border-borderBg rounded-2xl p-5 shadow-xl relative overflow-hidden flex-grow">
+                <div class="flex items-center gap-2 border-b border-borderBg pb-3 mb-4">
+                    <i class="fa-solid fa-chart-bar text-spotifyGreen"></i>
+                    <h2 class="text-base font-bold text-white uppercase tracking-tight">Active Transition Inspector</h2>
+                </div>
+
+                <!-- Score Circle / Description Combo -->
+                <div class="flex flex-col sm:flex-row gap-5 items-center bg-spotifyBlack/50 border border-borderBg p-4 rounded-xl mb-4">
+                    <!-- Circle Score indicator -->
+                    <div class="relative flex-shrink-0 w-24 h-24 rounded-full border-4 border-borderBg flex flex-col items-center justify-center" id="score-circle-container">
+                        <span class="text-2xl font-bold font-heading text-white" id="score-val">10/10</span>
+                        <span class="text-[9px] text-zinc-500 uppercase font-bold tracking-widest">Harmony</span>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="flex-grow">
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-sm font-bold text-white uppercase tracking-wider" id="analyzer-title">Natural Harmonic Transition</h4>
+                            <span class="px-2 py-0.5 text-[9px] font-bold rounded-full" id="analyzer-tag">PERFECT</span>
+                        </div>
+                        <p class="text-xs text-zinc-400 mt-1 leading-relaxed" id="analyzer-description">
+                            These tracks are perfect next-door neighbors on the Camelot Wheel. The frequencies will layer beautifully with zero dissonance, making a smooth long-blend techno transition flawless.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Sound Engine Instruction banner if not initialized -->
+                <div id="click-warn-banner" class="mb-4 bg-spotifyGreen/10 border border-spotifyGreen/20 p-3 rounded-xl flex items-start gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-spotifyGreen mt-0.5"></i>
+                    <div class="text-xs">
+                        <span class="font-bold text-spotifyGreen block">Virtual Synthesizer Off</span>
+                        Tap the <span class="font-bold underline text-emerald-300 cursor-pointer animate-pulse" onclick="initAudioEngine()">Activate Studio Sound</span> button at the top header to listen to the harmonic blend in real-time.
+                    </div>
+                </div>
+
+                <!-- Specific tips for house/techno relative to the chosen pair -->
+                <div class="rounded-xl border border-borderBg bg-spotifyBlack/40 p-4 mb-4">
+                    <h3 class="text-xs font-bold tracking-wider text-spotifyGreen uppercase mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info"></i> Pro House & Techno DJ Tactics
+                    </h3>
+                    <p class="text-xs text-zinc-300 leading-relaxed" id="dj-pro-tip">
+                        With 8A and 9A, feel free to execute dynamic long overlays. In deep house, you can easily loop the intros and outros over each other for 32 to 64 bars without clashing bassline frequencies.
+                    </p>
+                </div>
+
+                <!-- SPOTIFY PLAYLIST MIXING GUIDE -->
+                <div class="rounded-xl border border-dashed border-borderBg bg-spotifyBlack/80 p-4">
+                    <h3 class="text-xs font-bold tracking-wider text-spotifyGreen uppercase mb-2 flex items-center gap-1.5">
+                        <i class="fa-brands fa-spotify"></i> Spotify Crossfade Implementation Tips
+                    </h3>
+                    <p class="text-xs text-zinc-400 leading-relaxed">
+                        To construct gapless DJ sets on Spotify, go to <strong class="text-zinc-200">Spotify Settings &gt; Playback</strong>, toggle <strong class="text-spotifyGreen">Crossfade</strong> ON, and configure the bar to <strong class="text-zinc-200">8 to 12 seconds</strong>. Organize your playlist using <strong class="text-zinc-200">The Bishop Step (±1)</strong> or <strong class="text-zinc-200">The Rook Slide</strong> key orders. Spotify will automatically overlay the outro/intro elements seamlessly, mimicking a club DJ in the background!
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- STEP-BY-STEP WORKFLOW TUTORIAL -->
+    <section class="max-w-7xl w-full mx-auto px-4 pb-12">
+        <div class="bg-cardBg border border-borderBg rounded-2xl p-6 lg:p-8 shadow-xl">
+            <h2 class="text-lg lg:text-xl font-bold text-white mb-6 border-b border-borderBg pb-4 flex items-center gap-2">
+                <i class="fa-solid fa-graduation-cap text-spotifyGreen"></i>
+                DJ Training: Step-by-Step Interactive Guide to Camelot Moves
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- Step 1 -->
+                <div class="bg-spotifyBlack p-4 rounded-xl border border-borderBg space-y-3 relative">
+                    <div class="absolute top-2 right-2 text-3xl font-heading font-black text-borderBg/40">01</div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-spotifyGreen">Step 1</span>
+                    <h3 class="text-sm font-bold text-white">Select Base Deck A</h3>
+                    <p class="text-xs text-zinc-400 leading-relaxed">
+                        Set the top target selector to <span class="text-cyan-400 font-semibold">"Edit Deck A"</span>, then select an initial key on the SVG Camelot Wheel (e.g., <strong>8A</strong> - Am).
+                    </p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="bg-spotifyBlack p-4 rounded-xl border border-borderBg space-y-3 relative">
+                    <div class="absolute top-2 right-2 text-3xl font-heading font-black text-borderBg/40">02</div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-spotifyGreen">Step 2</span>
+                    <h3 class="text-sm font-bold text-white">Select Step Strategy</h3>
+                    <p class="text-xs text-zinc-400 leading-relaxed">
+                        Select any tactic from the <strong class="text-zinc-300">DJ Chess Playbook</strong>. Observe the dynamic vector arrows and glowing targets adjust on the wheel.
+                    </p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="bg-spotifyBlack p-4 rounded-xl border border-borderBg space-y-3 relative">
+                    <div class="absolute top-2 right-2 text-3xl font-heading font-black text-borderBg/40">03</div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-spotifyGreen">Step 3</span>
+                    <h3 class="text-sm font-bold text-white">Inspect Connection Path</h3>
+                    <p class="text-xs text-zinc-400 leading-relaxed">
+                        Observe the vector arrow showing the step distance on the wheel. A floating indicator calculates the path distance automatically.
+                    </p>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="bg-spotifyBlack p-4 rounded-xl border border-borderBg space-y-3 relative">
+                    <div class="absolute top-2 right-2 text-3xl font-heading font-black text-borderBg/40">04</div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-spotifyGreen">Step 4</span>
+                    <h3 class="text-sm font-bold text-white">Fade & Analyze</h3>
+                    <p class="text-xs text-zinc-400 leading-relaxed">
+                        Start the audio generator, then use the <strong class="text-spotifyGreen">Crossfader</strong> to shift the audio focus and hear the acoustic blending performance.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-borderBg bg-spotifyBlack px-4 py-6 text-center text-xs text-zinc-500">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>© 2026 Spotify Harmonic Mixer Lab. Made specifically for planning House & Techno sets.</p>
+            <div class="flex items-center gap-4">
+                <span class="text-spotifyGreen font-semibold flex items-center gap-1">
+                    <i class="fa-solid fa-shield"></i> Verified Vector Calculations
+                </span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC AND CORE AUDIO ENGINE -->
+    <script>
+        // Camelot keys mapping data (1A to 12A, 1B to 12B)
+        const CAMELOT_KEYS = {
+            // Minor Keys (A)
+            '1A': { num: 1, letter: 'A', name: 'G#m', fullName: 'G-Sharp Minor', freq: 207.65, majorRel: '1B', chordType: 'minor', color: '#019451' },
+            '2A': { num: 2, letter: 'A', name: 'D#m', fullName: 'D-Sharp Minor', freq: 155.56, majorRel: '2B', chordType: 'minor', color: '#00A896' },
+            '3A': { num: 3, letter: 'A', name: 'A#m', fullName: 'A-Sharp Minor', freq: 233.08, majorRel: '3B', chordType: 'minor', color: '#028090' },
+            '4A': { num: 4, letter: 'A', name: 'Fm', fullName: 'F Minor', freq: 174.61, majorRel: '4B', chordType: 'minor', color: '#006494' },
+            '5A': { num: 5, letter: 'A', name: 'Cm', fullName: 'C Minor', freq: 130.81, majorRel: '5B', chordType: 'minor', color: '#1446a0' },
+            '6A': { num: 6, letter: 'A', name: 'Gm', fullName: 'G Minor', freq: 196.00, majorRel: '6B', chordType: 'minor', color: '#3f37c9' },
+            '7A': { num: 7, letter: 'A', name: 'Dm', fullName: 'D Minor', freq: 146.83, majorRel: '7B', chordType: 'minor', color: '#7209b7' },
+            '8A': { num: 8, letter: 'A', name: 'Am', fullName: 'A Minor', freq: 220.00, majorRel: '8B', chordType: 'minor', color: '#f72585' },
+            '9A': { num: 9, letter: 'A', name: 'Em', fullName: 'E Minor', freq: 164.81, majorRel: '9B', chordType: 'minor', color: '#e01e37' },
+            '10A': { num: 10, letter: 'A', name: 'Bm', fullName: 'B Minor', freq: 246.94, majorRel: '10B', chordType: 'minor', color: '#f77f00' },
+            '11A': { num: 11, letter: 'A', name: 'F#m', fullName: 'F-Sharp Minor', freq: 185.00, majorRel: '11B', chordType: 'minor', color: '#fcbf49' },
+            '12A': { num: 12, letter: 'A', name: 'C#m', fullName: 'C-Sharp Minor', freq: 138.59, majorRel: '12B', chordType: 'minor', color: '#eae2b7' },
+            
+            // Major Keys (B)
+            '1B': { num: 1, letter: 'B', name: 'B', fullName: 'B Major', freq: 246.94, minorRel: '1A', chordType: 'major', color: '#2ec4b6' },
+            '2B': { num: 2, letter: 'B', name: 'F#', fullName: 'F-Sharp Major', freq: 185.00, minorRel: '2A', chordType: 'major', color: '#c1121f' },
+            '3B': { num: 3, letter: 'B', name: 'Db', fullName: 'D-Flat Major', freq: 277.18, minorRel: '3A', chordType: 'major', color: '#a7c957' },
+            '4B': { num: 4, letter: 'B', name: 'Ab', fullName: 'A-Flat Major', freq: 207.65, minorRel: '4A', chordType: 'major', color: '#1d3557' },
+            '5B': { num: 5, letter: 'B', name: 'Eb', fullName: 'E-Flat Major', freq: 155.56, minorRel: '5A', chordType: 'major', color: '#457b9d' },
+            '6B': { num: 6, letter: 'B', name: 'Bb', fullName: 'B-Flat Major', freq: 233.08, minorRel: '6A', chordType: 'major', color: '#a8dadc' },
+            '7B': { num: 7, letter: 'B', name: 'F', fullName: 'F Major', freq: 174.61, minorRel: '7A', chordType: 'major', color: '#e63946' },
+            '8B': { num: 8, letter: 'B', name: 'C', fullName: 'C Major', freq: 261.63, minorRel: '8A', chordType: 'major', color: '#f1c0e8' },
+            '9B': { num: 9, letter: 'B', name: 'G', fullName: 'G Major', freq: 196.00, minorRel: '9A', chordType: 'major', color: '#cfbaf0' },
+            '10B': { num: 10, letter: 'B', name: 'D', fullName: 'D Major', freq: 293.66, minorRel: '10A', chordType: 'major', color: '#a3c4f3' },
+            '11B': { num: 11, letter: 'B', name: 'A', fullName: 'A Major', freq: 220.00, minorRel: '11A', chordType: 'major', color: '#b9fbc0' },
+            '12B': { num: 12, letter: 'B', name: 'E', fullName: 'E Major', freq: 164.81, minorRel: '12A', chordType: 'major', color: '#fbf8cc' }
+        };
+
+        // State Management variables
+        let audioCtx = null;
+        let isAudioInitialized = false;
+        let selectorTarget = 'B'; // Determines whether user clicks select Deck A or Deck B
+        let deckAKey = '8A'; // Default Outgoing key: Am
+        let deckBKey = '9A'; // Default Incoming key: Em
+        let activeMoveId = 'bishop_clockwise';
+        let isPlaying = false;
+        let crossfaderVal = 0; // 0 = Deck A fully active, 100 = Deck B fully active
+        let simulatedBpm = 126;
+
+        let soundConfig = {
+            kickEnabled: true,
+            chordsEnabled: true
+        };
+
+        let kickOsc = null;
+        let synthA = null;
+        let synthB = null;
+        let masterGain = null;
+        let deckAGain = null;
+        let deckBGain = null;
+        let schedulerInterval = null;
+        let currentStep = 0;
+
+        // Visual layout metrics for correct geometry projection
+        const wheelCenter = 225;
+        const radiusA = 100; // Center-line radius for Inner (Minor A) ring
+        const radiusB = 170; // Center-line radius for Outer (Major B) ring
+
+        window.onload = function() {
+            renderCamelotWheelSVG();
+            buildPlaybookUI();
+            selectKey('8A', 'A');
+            selectKey('9A', 'B');
+            updateAnalyzer();
+            animateMockVisualizers();
+        };
+
+        // MATHEMATICALLY FIXED: Maps to the exact geometric center of each Camelot sector slice.
+        function getKeyCoordinates(key) {
+            const info = CAMELOT_KEYS[key];
+            const sliceIndex = info.num; // 1 to 12
+            const radius = info.letter === 'A' ? radiusA : radiusB;
+            
+            // 12 o'clock represents sliceIndex 1. Slices are spaced 30 degrees apart.
+            // Angle offset of -90 degrees lines up 1A/1B perfectly vertically at the top.
+            const angleOffset = -90;
+            const sliceAngle = angleOffset + (sliceIndex - 1) * 30; // FIXED: center of the slice (not boundary)
+            const angleRad = sliceAngle * Math.PI / 180;
+
+            return {
+                x: wheelCenter + radius * Math.cos(angleRad),
+                y: wheelCenter + radius * Math.sin(angleRad)
+            };
+        }
+
+        // Render dynamic SVG Camelot Wheel
+        function renderCamelotWheelSVG() {
+            const svg = document.getElementById('camelot-svg');
+            let svgHTML = '';
+
+            // Render minor slices inner (r1=65, r2=135) & major slices outer (r1=135, r2=205)
+            for (let i = 1; i <= 12; i++) {
+                const angleOffset = -90; // 12 o'clock setup
+                const startAngle = (angleOffset + (i - 1) * 30 - 15) * Math.PI / 180;
+                const endAngle = (angleOffset + i * 30 - 15) * Math.PI / 180;
+
+                const tagA = `${i}A`;
+                const tagB = `${i}B`;
+
+                // Inner Minor (A) Segment
+                const pathA = getSvgRingPath(wheelCenter, wheelCenter, 65, 135, startAngle, endAngle);
+                const infoA = CAMELOT_KEYS[tagA];
+                const textAngle = startAngle + (endAngle - startAngle) / 2;
+                const txA = wheelCenter + 100 * Math.cos(textAngle);
+                const tyA = wheelCenter + 100 * Math.sin(textAngle);
+
+                svgHTML += `
+                    <path d="${pathA}" id="slice-${tagA}" onclick="onWheelSliceClick('${tagA}')"
+                        class="cursor-pointer transition-all duration-300 stroke-spotifyBlack stroke-2 hover:brightness-125"
+                        fill="${infoA.color}" opacity="0.3" />
+                    <text x="${txA}" y="${tyA - 4}" fill="#ffffff" font-size="11" font-weight="bold" font-family="Space Grotesk" text-anchor="middle" dominant-baseline="middle" class="pointer-events-none select-none">${tagA}</text>
+                    <text x="${txA}" y="${tyA + 8}" fill="#a3a3a3" font-size="8" font-family="Plus Jakarta Sans" text-anchor="middle" dominant-baseline="middle" class="pointer-events-none select-none opacity-80">${infoA.name}</text>
+                `;
+
+                // Outer Major (B) Segment
+                const pathB = getSvgRingPath(wheelCenter, wheelCenter, 135, 205, startAngle, endAngle);
+                const infoB = CAMELOT_KEYS[tagB];
+                const txB = wheelCenter + 170 * Math.cos(textAngle);
+                const tyB = wheelCenter + 170 * Math.sin(textAngle);
+
+                svgHTML += `
+                    <path d="${pathB}" id="slice-${tagB}" onclick="onWheelSliceClick('${tagB}')"
+                        class="cursor-pointer transition-all duration-300 stroke-spotifyBlack stroke-2 hover:brightness-125"
+                        fill="${infoB.color}" opacity="0.3" />
+                    <text x="${txB}" y="${tyB - 4}" fill="#ffffff" font-size="11" font-weight="bold" font-family="Space Grotesk" text-anchor="middle" dominant-baseline="middle" class="pointer-events-none select-none">${tagB}</text>
+                    <text x="${txB}" y="${tyB + 8}" fill="#a3a3a3" font-size="8" font-family="Plus Jakarta Sans" text-anchor="middle" dominant-baseline="middle" class="pointer-events-none select-none opacity-80">${infoB.name}</text>
+                `;
+            }
+
+            // Append vector overlays with customized marker design
+            svgHTML += `
+                <defs>
+                    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1 L 10 5 L 0 9 L 2 5 z" fill="#1DB954"/>
+                    </marker>
+                </defs>
+                <g id="vector-overlay" pointer-events="none"></g>
+            `;
+
+            svg.innerHTML = svgHTML;
+        }
+
+        // SVG Ring calculator
+        function getSvgRingPath(cx, cy, r1, r2, startAngle, endAngle) {
+            const x1_out = cx + r2 * Math.cos(startAngle);
+            const y1_out = cy + r2 * Math.sin(startAngle);
+            const x2_out = cx + r2 * Math.cos(endAngle);
+            const y2_out = cy + r2 * Math.sin(endAngle);
+
+            const x1_in = cx + r1 * Math.cos(startAngle);
+            const y1_in = cy + r1 * Math.sin(startAngle);
+            const x2_in = cx + r1 * Math.cos(endAngle);
+            const y2_in = cy + r1 * Math.sin(endAngle);
+
+            const largeArc = (endAngle - startAngle) > Math.PI ? 1 : 0;
+
+            return `M ${x1_out} ${y1_out} A ${r2} ${r2} 0 ${largeArc} 1 ${x2_out} ${y2_out} L ${x2_in} ${y2_in} A ${r1} ${r1} 0 ${largeArc} 0 ${x1_in} ${y1_in} Z`;
+        }
+
+        // Wheel Slice Interactive Trigger
+        function onWheelSliceClick(key) {
+            selectKey(key, selectorTarget);
+            
+            // Auto swap editor selection targets to accelerate planning sequences
+            if (selectorTarget === 'A') {
+                setSelectorTarget('B');
+            } else {
+                setSelectorTarget('A');
+            }
+        }
+
+        // Apply active key selection states
+        function selectKey(key, deck) {
+            if (deck === 'A') {
+                deckAKey = key;
+                document.getElementById('deck-a-camelot').innerText = key;
+                document.getElementById('deck-a-key-full').innerText = `${CAMELOT_KEYS[key].fullName} (${CAMELOT_KEYS[key].name})`;
+            } else {
+                deckBKey = key;
+                document.getElementById('deck-b-camelot').innerText = key;
+                document.getElementById('deck-b-key-full').innerText = `${CAMELOT_KEYS[key].fullName} (${CAMELOT_KEYS[key].name})`;
+            }
+
+            if (isAudioInitialized) {
+                updateSynthFreqs();
+            }
+
+            refreshWheelStyling();
+            updateAnalyzer();
+            recalculateCustomPlaybookMoves();
+            drawDynamicVectorLine();
+        }
+
+        // Set Selector state editor
+        function setSelectorTarget(target) {
+            selectorTarget = target;
+            const btnA = document.getElementById('target-a-btn');
+            const btnB = document.getElementById('target-b-btn');
+
+            if (target === 'A') {
+                btnA.className = "px-3 py-1 text-xs font-bold rounded-full bg-cyan-500 text-spotifyBlack";
+                btnB.className = "px-3 py-1 text-xs font-semibold rounded-full text-zinc-400";
+            } else {
+                btnB.className = "px-3 py-1 text-xs font-bold rounded-full bg-fuchsia-500 text-spotifyBlack";
+                btnA.className = "px-3 py-1 text-xs font-semibold rounded-full text-zinc-400";
+            }
+        }
+
+        // Update slices' color brightness dynamically based on key selection
+        function refreshWheelStyling() {
+            for (let key in CAMELOT_KEYS) {
+                const path = document.getElementById(`slice-${key}`);
+                if (!path) continue;
+
+                // Reset
+                path.setAttribute('opacity', '0.2');
+                path.setAttribute('stroke', '#0b0b0b');
+                path.setAttribute('stroke-width', '2');
+
+                const comp = checkCompatibility(deckAKey, key);
+                if (comp.compatible) {
+                    path.setAttribute('opacity', '0.55');
+                    path.setAttribute('stroke', '#1DB954'); // Glowing green matching target indicator
+                    path.setAttribute('stroke-width', '1');
+                }
+            }
+
+            // Highlighting Deck A specifically (Cyan glow outline)
+            const pathA = document.getElementById(`slice-${deckAKey}`);
+            if (pathA) {
+                pathA.setAttribute('opacity', '1');
+                pathA.setAttribute('stroke', '#06b6d4');
+                pathA.setAttribute('stroke-width', '4');
+            }
+
+            // Highlighting Deck B specifically (Fuchsia glow outline)
+            const pathB = document.getElementById(`slice-${deckBKey}`);
+            if (pathB) {
+                pathB.setAttribute('opacity', '1');
+                pathB.setAttribute('stroke', '#d946ef');
+                pathB.setAttribute('stroke-width', '4');
+            }
+        }
+
+        // Draw precise geometric vector overlay arrows and floating step labels
+        function drawDynamicVectorLine() {
+            const overlay = document.getElementById('vector-overlay');
+            if (!overlay) return;
+
+            overlay.innerHTML = '';
+
+            if (deckAKey === deckBKey) {
+                // Return a centered circular pulsing element if keys are identical (0 step change)
+                const coords = getKeyCoordinates(deckAKey);
+                overlay.innerHTML = `
+                    <circle cx="${coords.x}" cy="${coords.y}" r="15" fill="none" stroke="#1DB954" stroke-width="2" opacity="0.8">
+                        <animate attributeName="r" values="10;25;10" dur="2s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.8;0;0.8" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="${coords.x}" cy="${coords.y}" r="5" fill="#1DB954" />
+                `;
+                return;
+            }
+
+            const start = getKeyCoordinates(deckAKey);
+            const end = getKeyCoordinates(deckBKey);
+
+            // Calculate exact midpoint for the floating text annotation
+            const midX = (start.x + end.x) / 2;
+            const midY = (start.y + end.y) / 2;
+
+            // Compute distance difference labeling text
+            const compResult = checkCompatibility(deckAKey, deckBKey);
+            let distanceLabel = 'Jump';
+            if (compResult.type === 'step') distanceLabel = '±1 Step';
+            else if (compResult.type === 'relative') distanceLabel = 'Mood Slide';
+            else if (compResult.type === 'energy') distanceLabel = '+2 Energy';
+            else if (compResult.type === 'subdominant') distanceLabel = 'Castle Shift';
+
+            // Generate clean vector path linking the centers with marker arrows
+            const lineHtml = `
+                <!-- Draw the glowing dashed connector vector -->
+                <line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" 
+                    stroke="#1DB954" stroke-width="3" 
+                    marker-end="url(#arrow)"
+                    class="animated-vector-line" />
+                
+                <!-- Center anchoring indicators -->
+                <circle cx="${start.x}" cy="${start.y}" r="6" fill="#06b6d4" stroke="#0b0b0b" stroke-width="1.5" />
+                <circle cx="${end.x}" cy="${end.y}" r="6" fill="#d946ef" stroke="#0b0b0b" stroke-width="1.5" />
+                
+                <!-- Floating step distance label directly centered on vector trajectory -->
+                <g transform="translate(${midX}, ${midY})">
+                    <rect x="-35" y="-10" width="70" height="20" rx="10" fill="#181818" stroke="#1DB954" stroke-width="1" />
+                    <text x="0" y="0" dy="3.5" fill="#1DB954" font-size="8" font-family="Space Grotesk" font-weight="bold" text-anchor="middle" class="select-none pointer-events-none">${distanceLabel}</text>
+                </g>
+            `;
+
+            overlay.innerHTML = lineHtml;
+        }
+
+        // Preset database configurations for DJ Chess metaphors
+        const CHESS_MOVE_TYPES = {
+            'pawn_hold': {
+                id: 'pawn_hold',
+                name: 'The Pawn Hold',
+                chessAnalogy: 'Defensive slide',
+                description: 'Mix inside same key (0 steps). 100% harmonically flawless.',
+                shortMove: 'Hold (0)',
+                calculateTarget: (currentKey) => currentKey
+            },
+            'bishop_clockwise': {
+                id: 'bishop_clockwise',
+                name: 'The Bishop Upward Step',
+                chessAnalogy: '1 space clockwise',
+                description: 'Rise up +1 clock hour (e.g. 8A → 9A). Creates a warm, natural emotional tension lift.',
+                shortMove: 'Step (+1)',
+                calculateTarget: (currentKey) => {
+                    const info = CAMELOT_KEYS[currentKey];
+                    let nextNum = info.num + 1;
+                    if (nextNum > 12) nextNum = 1;
+                    return `${nextNum}${info.letter}`;
+                }
+            },
+            'bishop_counter': {
+                id: 'bishop_counter',
+                name: 'The Bishop Downward Step',
+                chessAnalogy: '1 space counter-clockwise',
+                description: 'Step down -1 clock hour (e.g. 8A → 7A). Cools down room energy gracefully.',
+                shortMove: 'Step (-1)',
+                calculateTarget: (currentKey) => {
+                    const info = CAMELOT_KEYS[currentKey];
+                    let nextNum = info.num - 1;
+                    if (nextNum < 1) nextNum = 12;
+                    return `${nextNum}${info.letter}`;
+                }
+            },
+            'rook_slide': {
+                id: 'rook_slide',
+                name: 'The Rook Slide',
+                chessAnalogy: 'Vertical swap',
+                description: 'Swap between Minor and Major (same number, change letter, e.g. 8A → 8B). Perfect transition to introduce bright major vocals into underground techno.',
+                shortMove: 'Mood Swap (A↔B)',
+                calculateTarget: (currentKey) => {
+                    const info = CAMELOT_KEYS[currentKey];
+                    const nextLetter = info.letter === 'A' ? 'B' : 'A';
+                    return `${info.num}${nextLetter}`;
+                }
+            },
+            'knight_jump_plus2': {
+                id: 'knight_jump_plus2',
+                name: 'The Knight\'s Energy Jump',
+                chessAnalogy: '2 spaces clockwise jump',
+                description: 'Skip +2 hours forward (e.g. 8A → 10A). Immediate, noticeable raise in energy level for peak drops.',
+                shortMove: 'Boost (+2)',
+                calculateTarget: (currentKey) => {
+                    const info = CAMELOT_KEYS[currentKey];
+                    let nextNum = info.num + 2;
+                    if (nextNum > 12) nextNum = nextNum - 12;
+                    return `${nextNum}${info.letter}`;
+                }
+            },
+            'queen_subdominant_plus7': {
+                id: 'queen_subdominant_plus7',
+                name: 'The Castle Shift',
+                chessAnalogy: '+7 spaces jump',
+                description: 'Modulate +7 clock hours forward (e.g. 8A → 3A). Structural subdominant harmony swap.',
+                shortMove: 'Castle (+7)',
+                calculateTarget: (currentKey) => {
+                    const info = CAMELOT_KEYS[currentKey];
+                    let nextNum = info.num + 7;
+                    if (nextNum > 12) nextNum = nextNum - 12;
+                    return `${nextNum}${info.letter}`;
+                }
+            }
+        };
+
+        // Render Chess Playbook Options
+        function buildPlaybookUI() {
+            const container = document.getElementById('playbook-moves-container');
+            let html = '';
+
+            for (let id in CHESS_MOVE_TYPES) {
+                const move = CHESS_MOVE_TYPES[id];
+                html += `
+                    <button onclick="applyChessPlaybookMove('${id}')" id="playbook-btn-${id}" 
+                        class="flex flex-col items-start p-3 bg-spotifyBlack/60 hover:bg-spotifyBlack border border-borderBg hover:border-zinc-700/80 rounded-xl transition text-left group">
+                        <div class="flex items-center justify-between w-full">
+                            <span class="text-xs font-bold text-spotifyGreen group-hover:text-emerald-400 flex items-center gap-1.5">
+                                <i class="fa-solid fa-chess-pawn text-[10px]"></i> ${move.name}
+                            </span>
+                            <span id="playbook-tag-${id}" class="text-[9px] font-mono bg-spotifyBlack px-1.5 py-0.5 rounded text-zinc-400 border border-borderBg font-bold uppercase"></span>
+                        </div>
+                        <span class="text-[10px] text-zinc-500 font-semibold italic mt-1">Chess Rule: ${move.chessAnalogy}</span>
+                        <span class="text-[11px] text-zinc-400 mt-1.5 leading-relaxed">${move.description}</span>
+                    </button>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        // Apply visual updates matching selections
+        function recalculateCustomPlaybookMoves() {
+            for (let id in CHESS_MOVE_TYPES) {
+                const move = CHESS_MOVE_TYPES[id];
+                const targetKey = move.calculateTarget(deckAKey);
+                const tagEl = document.getElementById(`playbook-tag-${id}`);
+                const btnEl = document.getElementById(`playbook-btn-${id}`);
+
+                if (tagEl) {
+                    tagEl.innerText = `${deckAKey} → ${targetKey}`;
+                }
+
+                if (btnEl) {
+                    if (targetKey === deckBKey) {
+                        btnEl.className = "flex flex-col items-start p-3 bg-emerald-950/20 border border-spotifyGreen/60 rounded-xl transition text-left group scale-[1.01] shadow-md shadow-spotifyGreen/5";
+                        document.getElementById('active-path-label').innerText = move.shortMove;
+                    } else {
+                        btnEl.className = "flex flex-col items-start p-3 bg-spotifyBlack/60 hover:bg-spotifyBlack border border-borderBg hover:border-zinc-700/80 rounded-xl transition text-left group";
+                    }
+                }
+            }
+        }
+
+        // Move execution handler
+        function applyChessPlaybookMove(moveId) {
+            activeMoveId = moveId;
+            const move = CHESS_MOVE_TYPES[moveId];
+            const targetKey = move.calculateTarget(deckAKey);
+
+            selectKey(targetKey, 'B');
+
+            if (isAudioInitialized && !isPlaying) {
+                togglePlayState();
+            }
+        }
+
+        // Formula assessing harmony compatibility indices
+        function checkCompatibility(keyA, keyB) {
+            if (keyA === keyB) {
+                return { compatible: true, type: 'same', score: 10, label: 'The Pawn Hold (Safe Match)', colorClass: 'bg-emerald-500/10 text-emerald-300' };
+            }
+
+            const kA = CAMELOT_KEYS[keyA];
+            const kB = CAMELOT_KEYS[keyB];
+
+            // Mood swap Rook Slide
+            if (kA.num === kB.num && kA.letter !== kB.letter) {
+                return { compatible: true, type: 'relative', score: 9.2, label: 'The Rook Slide (Relative Mood Swap)', colorClass: 'bg-indigo-500/10 text-indigo-300' };
+            }
+
+            // Bishop modulation
+            if (kA.letter === kB.letter) {
+                const diff = Math.abs(kA.num - kB.num);
+                if (diff === 1 || diff === 11) {
+                    return { compatible: true, type: 'step', score: 9.8, label: 'The Bishop Step (Harmonic Modulation)', colorClass: 'bg-cyan-500/10 text-cyan-300' };
+                }
+                
+                // Knight jump energy step
+                if (diff === 2 || diff === 10) {
+                    return { compatible: true, type: 'energy', score: 8.5, label: 'The Knight\'s Energy Jump', colorClass: 'bg-amber-500/10 text-amber-300' };
+                }
+
+                // Castle shift subdominant
+                if (diff === 7 || diff === 5) {
+                    return { compatible: true, type: 'subdominant', score: 8.8, label: 'The Castle Shift (Dominant Transition)', colorClass: 'bg-blue-500/10 text-blue-300' };
+                }
+            }
+
+            return { compatible: false, type: 'clash', score: 2.5, label: 'Dissonant Audio Clash Warning!', colorClass: 'bg-rose-500/10 text-rose-300' };
+        }
+
+        // Update display text blocks
+        function updateAnalyzer() {
+            const result = checkCompatibility(deckAKey, deckBKey);
+            const scoreCircle = document.getElementById('score-circle-container');
+            const scoreVal = document.getElementById('score-val');
+            const titleEl = document.getElementById('analyzer-title');
+            const tagEl = document.getElementById('analyzer-tag');
+            const descEl = document.getElementById('analyzer-description');
+            const tipEl = document.getElementById('dj-pro-tip');
+
+            scoreVal.innerText = `${result.score}/10`;
+
+            if (result.score >= 9) {
+                scoreCircle.className = "relative flex-shrink-0 w-24 h-24 rounded-full border-4 border-spotifyGreen flex flex-col items-center justify-center pulse-active";
+                tagEl.className = "px-2 py-0.5 text-[9px] font-bold rounded bg-emerald-500/10 text-spotifyGreen border border-spotifyGreen/20";
+            } else if (result.score >= 7) {
+                scoreCircle.className = "relative flex-shrink-0 w-24 h-24 rounded-full border-4 border-cyan-500 flex flex-col items-center justify-center";
+                tagEl.className = "px-2 py-0.5 text-[9px] font-bold rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20";
+            } else {
+                scoreCircle.className = "relative flex-shrink-0 w-24 h-24 rounded-full border-4 border-rose-600 flex flex-col items-center justify-center";
+                tagEl.className = "px-2 py-0.5 text-[9px] font-bold rounded bg-rose-500/10 text-rose-400 border border-rose-500/20";
+            }
+
+            titleEl.innerText = result.label;
+            tagEl.innerText = result.score >= 9 ? "OPTIMAL" : result.score >= 7 ? "COMPATIBLE" : "CLASH DETECTED";
+
+            let desc = "";
+            let tip = "";
+
+            if (result.type === 'same') {
+                desc = `You are executing the "Pawn Hold" strategy (${deckAKey} → ${deckBKey}). This keeps the mix inside the identical musical scale for ultra-long deep house transitions.`;
+                tip = "Perfect for subterranean house & hypnosis-inducing minimal techno tracks. You can loop basslines and synth lines endlessly on Spotify without any physical melody clashing.";
+            } else if (result.type === 'step') {
+                desc = `You are playing the "Bishop Step" modulation (${deckAKey} → ${deckBKey}). This transitions the tracks into closely related subdominant frequencies.`;
+                tip = "This is the gold standard of professional club mixes. It introduces a subtle, uplifting emotional rise (clockwise) or chill release (counter-clockwise) during the crossfade.";
+            } else if (result.type === 'relative') {
+                desc = `You are executing the "Rook Mood Slide" (${deckAKey} → ${deckBKey}). This shifts the scale mode from Minor to Major without altering any note signatures.`;
+                tip = "Excellent for transitioning from dark instrumental techno to melodic major vocal tracks. The vocals will sound perfectly tuned without clashing over the incoming bass line.";
+            } else if (result.type === 'energy') {
+                desc = `You are executing the "Knight's Energy Jump" (${deckAKey} → ${deckBKey}). This bypasses the immediate step rules to boost room energy.`;
+                tip = "Never crossfade these tracks slowly! It will sound muddy. Instead, build up tension on Deck A, then slam-drop Deck B's drop on the first beat of the chorus for a massive burst of energy.";
+            } else if (result.type === 'subdominant') {
+                desc = `You are executing the "Castle Shift" (${deckAKey} → ${deckBKey}). This modulates the track forward by a fifth interval (+7 clock positions).`;
+                tip = "Safe to transition, but watch your high mids and lead synthesizers. Make sure to lower Deck A's middle-frequencies on the mixer EQ to prevent acoustic clipping.";
+            } else {
+                desc = `Warning! Keys ${deckAKey} and ${deckBKey} represent an illegal chess move on the wheel. There are very few overlapping notes between these scales.`;
+                tip = "Caution: This mix will clash. Perform a clean transition using a high-pass filter on Deck A, or 'echo out' the outgoing song's reverb rather than overlapping active melodies.";
+            }
+
+            descEl.innerText = desc;
+            tipEl.innerText = tip;
+        }
+
+        // INITIALIZE LIVE SYNTHESIZER SOUND ENGINE
+        function initAudioEngine() {
+            if (isAudioInitialized) return;
+
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+                
+                masterGain = audioCtx.createGain();
+                masterGain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+                masterGain.connect(audioCtx.destination);
+
+                deckAGain = audioCtx.createGain();
+                deckAGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+                deckAGain.connect(masterGain);
+
+                deckBGain = audioCtx.createGain();
+                deckBGain.gain.setValueAtTime(0.0, audioCtx.currentTime); // Deck B starts silent because crossfader starts at 0 (Left)
+                deckBGain.connect(masterGain);
+
+                synthA = createSynthGroup(deckAGain);
+                synthB = createSynthGroup(deckBGain);
+
+                runBeatScheduler();
+
+                isAudioInitialized = true;
+                document.getElementById('click-warn-banner').classList.add('hidden');
+                document.getElementById('unmute-btn').className = "px-4 py-1.5 bg-cardBg border border-borderBg hover:bg-zinc-800 text-zinc-100 font-bold text-xs rounded-full transition-all duration-300 shadow-md flex items-center gap-2";
+                document.getElementById('unmute-icon').className = "fa-solid fa-volume-xmark text-spotifyGreen";
+                document.getElementById('unmute-text').innerText = "Disable Sound System";
+                document.getElementById('unmute-btn').onclick = disableAudioEngine;
+                
+                updateSynthFreqs();
+            } catch (err) {
+                console.error("Audio engine failed to start: ", err);
+            }
+        }
+
+        function disableAudioEngine() {
+            if (!isAudioInitialized) return;
+            
+            clearInterval(schedulerInterval);
+            audioCtx.close();
+            isAudioInitialized = false;
+
+            document.getElementById('click-warn-banner').classList.remove('hidden');
+            document.getElementById('unmute-btn').className = "px-4 py-1.5 bg-gradient-to-r from-spotifyGreen to-emerald-600 hover:from-emerald-500 hover:to-spotifyGreen text-spotifyBlack font-bold text-xs rounded-full transition-all duration-300 shadow-lg shadow-spotifyGreen/20 flex items-center gap-2";
+            document.getElementById('unmute-icon').className = "fa-solid fa-volume-high";
+            document.getElementById('unmute-text').innerText = "Activate Studio Sound";
+            document.getElementById('unmute-btn').onclick = initAudioEngine;
+
+            if (isPlaying) {
+                togglePlayState();
+            }
+        }
+
+        // Create synthesizer chord groupings
+        function createSynthGroup(destinationNode) {
+            const oscGroup = {
+                root: audioCtx.createOscillator(),
+                third: audioCtx.createOscillator(),
+                fifth: audioCtx.createOscillator(),
+                filter: audioCtx.createBiquadFilter(),
+                gainNode: audioCtx.createGain()
+            };
+
+            oscGroup.root.type = 'sawtooth';
+            oscGroup.third.type = 'triangle';
+            oscGroup.fifth.type = 'triangle';
+
+            oscGroup.filter.type = 'lowpass';
+            oscGroup.filter.frequency.setValueAtTime(450, audioCtx.currentTime); // Deep warm techno lowpass filter
+
+            oscGroup.gainNode.gain.setValueAtTime(0.06, audioCtx.currentTime);
+
+            oscGroup.root.connect(oscGroup.filter);
+            oscGroup.third.connect(oscGroup.filter);
+            oscGroup.fifth.connect(oscGroup.filter);
+            oscGroup.filter.connect(oscGroup.gainNode);
+            oscGroup.gainNode.connect(destinationNode);
+
+            oscGroup.root.start();
+            oscGroup.third.start();
+            oscGroup.fifth.start();
+
+            return oscGroup;
+        }
+
+        function updateSynthFreqs() {
+            if (!isAudioInitialized) return;
+
+            const keyAData = CAMELOT_KEYS[deckAKey];
+            const keyBData = CAMELOT_KEYS[deckBKey];
+
+            setChordFreqs(synthA, keyAData);
+            setChordFreqs(synthB, keyBData);
+        }
+
+        function setChordFreqs(synthGroup, keyData) {
+            const rootFreq = keyData.freq;
+            let thirdFreq, fifthFreq;
+
+            if (keyData.chordType === 'minor') {
+                thirdFreq = rootFreq * 1.1892; // Minor Third
+                fifthFreq = rootFreq * 1.4983; // Perfect Fifth
+            } else {
+                thirdFreq = rootFreq * 1.2599; // Major Third
+                fifthFreq = rootFreq * 1.4983; // Perfect Fifth
+            }
+
+            const now = audioCtx.currentTime;
+            synthGroup.root.frequency.exponentialRampToValueAtTime(rootFreq, now + 0.15);
+            synthGroup.third.frequency.exponentialRampToValueAtTime(thirdFreq, now + 0.15);
+            synthGroup.fifth.frequency.exponentialRampToValueAtTime(fifthFreq, now + 0.15);
+        }
+
+        // Run the 4/4 scheduler loop
+        function runBeatScheduler() {
+            const stepTime = 60 / simulatedBpm / 2; // Eighth notes
+            
+            schedulerInterval = setInterval(() => {
+                if (!isPlaying || !isAudioInitialized) return;
+
+                const timeNow = audioCtx.currentTime;
+
+                if (currentStep % 2 === 0) {
+                    if (soundConfig.kickEnabled) {
+                        playSynthesizedKick(timeNow);
+                    }
+                    
+                    // Emulates standard club sidechain compression pumping
+                    if (soundConfig.chordsEnabled) {
+                        applySidechainEnvelope(synthA, timeNow);
+                        applySidechainEnvelope(synthB, timeNow);
+                    }
+                }
+
+                currentStep = (currentStep + 1) % 8;
+            }, stepTime * 1000);
+        }
+
+        // 909-style bass sweep kick synthesizer
+        function playSynthesizedKick(time) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(masterGain);
+
+            osc.frequency.setValueAtTime(150, time);
+            osc.frequency.exponentialRampToValueAtTime(45, time + 0.08);
+
+            gain.gain.setValueAtTime(0.8, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+
+            osc.start(time);
+            osc.stop(time + 0.2);
+        }
+
+        // Sidechain compression dynamics simulator
+        function applySidechainEnvelope(synthGroup, time) {
+            const baseGain = 0.08;
+            synthGroup.gainNode.gain.cancelScheduledValues(time);
+            synthGroup.gainNode.gain.setValueAtTime(baseGain, time);
+            synthGroup.gainNode.gain.exponentialRampToValueAtTime(0.005, time + 0.03); // Duck compression peak
+            synthGroup.gainNode.gain.exponentialRampToValueAtTime(baseGain, time + 0.18); // Natural decay recovery release
+        }
+
+        // Trigger dynamic wash cymbal swoosh effect
+        function triggerCrashCymbal() {
+            if (!isAudioInitialized) {
+                initAudioEngine();
+            }
+            if (!audioCtx) return;
+
+            const bufferSize = audioCtx.sampleRate * 1.5;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = buffer;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.setValueAtTime(6500, audioCtx.currentTime);
+
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+
+            noiseNode.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(masterGain);
+
+            noiseNode.start();
+        }
+
+        function updateBpm(val) {
+            const cleanedVal = Math.max(115, Math.min(145, parseInt(val) || 126));
+            simulatedBpm = cleanedVal;
+            document.getElementById('bpm-input').value = cleanedVal;
+            document.getElementById('center-bpm').innerText = `${cleanedVal} BPM`;
+            
+            if (isAudioInitialized && isPlaying) {
+                clearInterval(schedulerInterval);
+                runBeatScheduler();
+            }
+        }
+
+        // Dynamic Crossfader curves implementation
+        function onCrossfaderMove(value) {
+            crossfaderVal = parseInt(value);
+            
+            if (isAudioInitialized && audioCtx) {
+                const now = audioCtx.currentTime;
+                const gainA = (100 - crossfaderVal) / 100;
+                const gainB = crossfaderVal / 100;
+
+                deckAGain.gain.linearRampToValueAtTime(gainA, now + 0.05);
+                deckBGain.gain.linearRampToValueAtTime(gainB, now + 0.05);
+            }
+
+            const cardA = document.getElementById('deck-a-card');
+            const cardB = document.getElementById('deck-b-card');
+
+            if (crossfaderVal < 45) {
+                cardA.className = "bg-spotifyBlack border border-cyan-500/80 rounded-xl p-4 transition-all duration-300 relative overflow-hidden shadow-lg shadow-cyan-500/5";
+                cardB.className = "bg-spotifyBlack border border-borderBg rounded-xl p-4 transition-all duration-300 relative overflow-hidden";
+            } else if (crossfaderVal > 55) {
+                cardA.className = "bg-spotifyBlack border border-borderBg rounded-xl p-4 transition-all duration-300 relative overflow-hidden";
+                cardB.className = "bg-spotifyBlack border border-fuchsia-500/80 rounded-xl p-4 transition-all duration-300 relative overflow-hidden shadow-lg shadow-fuchsia-500/5";
+            } else {
+                cardA.className = "bg-spotifyBlack border border-cyan-500/40 rounded-xl p-4 transition-all duration-300 relative overflow-hidden";
+                cardB.className = "bg-spotifyBlack border border-fuchsia-500/40 rounded-xl p-4 transition-all duration-300 relative overflow-hidden";
+            }
+        }
+
+        function resetCrossfaderCenter() {
+            document.getElementById('crossfader').value = 50;
+            onCrossfaderMove(50);
+        }
+
+        function togglePlayState() {
+            if (!isAudioInitialized) {
+                initAudioEngine();
+            }
+
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('play-pause-btn');
+            const icon = document.getElementById('play-icon');
+            const text = document.getElementById('play-text');
+
+            if (isPlaying) {
+                btn.className = "h-10 px-5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-full flex items-center gap-2 shadow-lg shadow-rose-600/30 transition duration-200";
+                icon.className = "fa-solid fa-pause";
+                text.innerText = "Stop Mix Audio Loop";
+            } else {
+                btn.className = "h-10 px-5 bg-spotifyGreen hover:bg-emerald-500 text-spotifyBlack font-bold rounded-full flex items-center gap-2 shadow-lg shadow-spotifyGreen/20 transition duration-200";
+                icon.className = "fa-solid fa-play";
+                text.innerText = "Play Mix Audio Loop";
+            }
+        }
+
+        function toggleDrumPart(part) {
+            if (part === 'kick') {
+                soundConfig.kickEnabled = !soundConfig.kickEnabled;
+                const btn = document.getElementById('toggle-kick');
+                if (soundConfig.kickEnabled) {
+                    btn.className = "px-3 py-1.5 rounded-full bg-cyan-950/40 text-cyan-400 border border-cyan-500/30 font-semibold transition flex items-center gap-1.5";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-full bg-spotifyBlack text-zinc-500 border border-borderBg font-semibold transition flex items-center gap-1.5";
+                }
+            } else if (part === 'chords') {
+                soundConfig.chordsEnabled = !soundConfig.chordsEnabled;
+                const btn = document.getElementById('toggle-pads');
+                
+                if (soundConfig.chordsEnabled) {
+                    btn.className = "px-3 py-1.5 rounded-full bg-spotifyGreen/10 text-spotifyGreen border border-spotifyGreen/30 font-semibold transition flex items-center gap-1.5";
+                    if (isAudioInitialized) {
+                        synthA.gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                        synthB.gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    }
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-full bg-spotifyBlack text-zinc-500 border border-borderBg font-semibold transition flex items-center gap-1.5";
+                    if (isAudioInitialized) {
+                        synthA.gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                        synthB.gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                    }
+                }
+            }
+        }
+
+        // Animate simulated frequency bar oscillations
+        function animateMockVisualizers() {
+            setInterval(() => {
+                const vizA = document.getElementById('viz-a');
+                const vizB = document.getElementById('viz-b');
+                
+                if (isPlaying && crossfaderVal < 90) {
+                    const barsA = vizA.children;
+                    for (let bar of barsA) {
+                        const randomHeight = Math.floor(Math.random() * 32) + 4;
+                        bar.style.height = `${randomHeight}px`;
+                        bar.style.opacity = '1';
+                    }
+                } else {
+                    const barsA = vizA.children;
+                    for (let bar of barsA) {
+                        bar.style.height = `4px`;
+                        bar.style.opacity = '0.3';
+                    }
+                }
+
+                if (isPlaying && crossfaderVal > 10) {
+                    const barsB = vizB.children;
+                    for (let bar of barsB) {
+                        const randomHeight = Math.floor(Math.random() * 32) + 4;
+                        bar.style.height = `${randomHeight}px`;
+                        bar.style.opacity = '1';
+                    }
+                } else {
+                    const barsB = vizB.children;
+                    for (let bar of barsB) {
+                        bar.style.height = `4px`;
+                        bar.style.opacity = '0.3';
+                    }
+                }
+            }, 100);
+        }
+    </script>
+</body>
+</html>
