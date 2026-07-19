@@ -477,6 +477,40 @@ export function SpotifyProvider({ children }) {
     }
   };
 
+  // Get details for a single track (including audio features)
+  const getTrackDetails = async (trackId) => {
+    if (!token || !trackId) return null;
+    try {
+      const res = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const track = await res.json();
+        const cleanTrack = {
+          id: track.id,
+          name: track.name,
+          artist: track.artists.map(a => a.name).join(', '),
+          album: track.album.name,
+          albumArt: track.album.images?.[0]?.url || '',
+          durationMs: track.duration_ms
+        };
+
+        const features = await fetchTrackAudioFeatures([trackId]);
+        return {
+          ...cleanTrack,
+          ...(features[trackId] || { bpm: 120, camelotCode: '8A', keyName: 'Am', keyFullName: 'A Minor', energy: 0.5, danceability: 0.5, valence: 0.5 })
+        };
+      } else {
+        const errorText = await res.text();
+        console.error(`Error fetching track ${trackId}:`, res.status, errorText);
+      }
+      return null;
+    } catch (err) {
+      console.error(`Error fetching track ${trackId}:`, err);
+      return null;
+    }
+  };
+
   return (
     <SpotifyContext.Provider value={{
       token,
@@ -488,7 +522,8 @@ export function SpotifyProvider({ children }) {
       fetchPlaylists,
       getPlaylistTracks,
       searchTracks,
-      exportPlaylist
+      exportPlaylist,
+      getTrackDetails
     }}>
       {children}
     </SpotifyContext.Provider>

@@ -13,7 +13,8 @@ export default function SpotifyTrackFinder() {
     fetchPlaylists,
     getPlaylistTracks,
     searchTracks,
-    exportPlaylist
+    exportPlaylist,
+    getTrackDetails
   } = useSpotify();
 
   const {
@@ -30,6 +31,7 @@ export default function SpotifyTrackFinder() {
   const [selectedPlaylistId, setSelectedPlaylistId] = useState('');
   const [playlistTracks, setPlaylistTracks] = useState([]);
   const [isLoadingTracks, setIsLoadingTracks] = useState(false);
+  const [dragOverQueue, setDragOverQueue] = useState(false);
 
   // Playlist workspace queue
   const [mixQueue, setMixQueue] = useState([]);
@@ -351,7 +353,15 @@ export default function SpotifyTrackFinder() {
             <div className="divide-y divide-borderBg/40">
               {/* If search results are showing */}
               {searchResults.length > 0 && searchResults.map(track => (
-                <div key={`search-${track.id}`} className="flex items-center justify-between p-2.5 hover:bg-spotifyBlack/60 transition group">
+                <div
+                  key={`search-${track.id}`}
+                  draggable="true"
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', `spotify:track:${track.id}`);
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  className="flex items-center justify-between p-2.5 hover:bg-spotifyBlack/60 transition group cursor-grab active:cursor-grabbing"
+                >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {track.albumArt ? (
                       <img src={track.albumArt} alt="album art" className="w-10 h-10 rounded object-cover" />
@@ -420,9 +430,16 @@ export default function SpotifyTrackFinder() {
                 </div>
               )}
 
-              {/* If playlist tracks are showing */}
               {playlistTracks.length > 0 && searchResults.length === 0 && playlistTracks.map(track => (
-                <div key={`playlist-${track.id}`} className="flex items-center justify-between p-2.5 hover:bg-spotifyBlack/60 transition group">
+                <div
+                  key={`playlist-${track.id}`}
+                  draggable="true"
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', `spotify:track:${track.id}`);
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  className="flex items-center justify-between p-2.5 hover:bg-spotifyBlack/60 transition group cursor-grab active:cursor-grabbing"
+                >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {track.albumArt ? (
                       <img src={track.albumArt} alt="album art" className="w-10 h-10 rounded object-cover" />
@@ -482,7 +499,38 @@ export default function SpotifyTrackFinder() {
       </div>
 
       {/* Playlist Mixer Queue Column */}
-      <div className="xl:col-span-5 bg-cardBg border border-borderBg rounded-2xl p-5 shadow-xl flex flex-col gap-4 relative overflow-hidden">
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOverQueue(true);
+        }}
+        onDragLeave={() => setDragOverQueue(false)}
+        onDrop={async (e) => {
+          e.preventDefault();
+          setDragOverQueue(false);
+
+          const data = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+          if (data) {
+            const match = data.match(/(?:track\/|track:)([a-zA-Z0-9]{22})/);
+            if (match) {
+              const trackId = match[1];
+              try {
+                const track = await getTrackDetails(trackId);
+                if (track) {
+                  addToQueue(track);
+                } else {
+                  alert("Failed to fetch track from Spotify. Verify that it is a valid track and you are logged in.");
+                }
+              } catch (err) {
+                console.error("Error loading dropped track to queue:", err);
+              }
+            }
+          }
+        }}
+        className={`xl:col-span-5 bg-cardBg border rounded-2xl p-5 shadow-xl flex flex-col gap-4 relative overflow-hidden transition-all duration-200 ${
+          dragOverQueue ? 'border-spotifyGreen scale-[1.01] shadow-spotifyGreen/10' : 'border-borderBg'
+        }`}
+      >
         <div className="absolute -right-12 -bottom-12 w-28 h-28 bg-spotifyGreen/5 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="flex items-center justify-between border-b border-borderBg pb-3">

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDJ } from '../context/DJContext';
+import { useSpotify } from '../context/SpotifyContext';
 
 export default function MixerConsole() {
   const {
@@ -29,8 +30,13 @@ export default function MixerConsole() {
     loadLocalAudioFile,
     adjustEQ,
     adjustPitch,
-    ejectDeck
+    ejectDeck,
+    setDeckATrack,
+    setDeckBTrack,
+    selectKey
   } = useDJ();
+
+  const { getTrackDetails } = useSpotify();
 
   const vizARef = useRef(null);
   const vizBRef = useRef(null);
@@ -105,16 +111,57 @@ export default function MixerConsole() {
     else setDragOverB(false);
   };
 
-  const handleDrop = (e, deck) => {
+  const handleDrop = async (e, deck) => {
     e.preventDefault();
     if (deck === 'A') setDragOverA(false);
     else setDragOverB(false);
 
+    // 1. Check for Spotify track URL/URI drag payload
+    const spotifyData = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    if (spotifyData) {
+      const match = spotifyData.match(/(?:track\/|track:)([a-zA-Z0-9]{22})/);
+      if (match) {
+        const trackId = match[1];
+        if (!getTrackDetails) {
+          alert("Spotify integration is not fully active. Please ensure you are logged in.");
+          return;
+        }
+
+        try {
+          const track = await getTrackDetails(trackId);
+          if (track) {
+            const trackObj = {
+              id: track.id,
+              name: track.name,
+              artist: track.artist,
+              albumArt: track.albumArt,
+              bpm: track.bpm,
+              camelotCode: track.camelotCode
+            };
+            if (deck === 'A') {
+              setDeckATrack(trackObj);
+              selectKey(track.camelotCode, 'A');
+            } else {
+              setDeckBTrack(trackObj);
+              selectKey(track.camelotCode, 'B');
+            }
+          } else {
+            alert("Unable to fetch track details from Spotify. Make sure your account is whitelisted.");
+          }
+        } catch (err) {
+          console.error("Error loading dropped track:", err);
+          alert("Failed to load dropped Spotify track.");
+        }
+        return;
+      }
+    }
+
+    // 2. Check for local audio file drop
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith('audio/')) {
       loadLocalAudioFile(deck, file);
     } else {
-      alert("Please drop a valid audio file (MP3/WAV/etc).");
+      alert("Please drop a valid audio file (MP3/WAV/etc) or a Spotify Track Link.");
     }
   };
 
