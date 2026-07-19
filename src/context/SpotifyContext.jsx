@@ -47,6 +47,7 @@ export function SpotifyProvider({ children }) {
   const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false);
   const [spotifyUser, setSpotifyUser] = useState(null);
   const timeoutRef = useRef(null);
+  const authAttempted = useRef(false);
 
   const clearSession = () => {
     localStorage.removeItem('spotify_access_token');
@@ -74,6 +75,7 @@ export function SpotifyProvider({ children }) {
     const codeVerifier = localStorage.getItem('spotify_code_verifier');
     if (!codeVerifier) {
       console.error("Code verifier not found in localStorage");
+      alert("Error: Spotify code verifier was not found in your browser storage. Please try logging in again.");
       clearSession();
       return;
     }
@@ -107,18 +109,15 @@ export function SpotifyProvider({ children }) {
         setToken(access_token);
         await fetchUserProfile(access_token);
         setupTokenExpiryTimeout(Number(expires_in) * 1000);
-
-        // Clear code/state from URL parameters securely
-        const url = new URL(window.location.href);
-        url.searchParams.delete('code');
-        url.searchParams.delete('state');
-        window.history.pushState({}, document.title, url.pathname + url.search);
       } else {
-        console.error("Failed to exchange code for token:", await response.text());
+        const errorText = await response.text();
+        console.error("Failed to exchange code for token:", errorText);
+        alert(`Authentication Error: Failed to retrieve access token from Spotify.\n\nDetails: ${errorText}`);
         clearSession();
       }
     } catch (err) {
       console.error("Error exchanging code for token:", err);
+      alert(`Network Error: Failed to connect to Spotify accounts service.\n\nDetails: ${err.message || err}`);
       clearSession();
     }
   };
@@ -174,6 +173,15 @@ export function SpotifyProvider({ children }) {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       if (code) {
+        if (authAttempted.current) return;
+        authAttempted.current = true;
+
+        // Clear code/state from URL parameters immediately to prevent multiple fetches
+        const url = new URL(window.location.href);
+        url.searchParams.delete('code');
+        url.searchParams.delete('state');
+        window.history.pushState({}, document.title, url.pathname + url.search);
+
         await fetchAccessToken(code);
         return;
       }
