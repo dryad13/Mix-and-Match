@@ -246,8 +246,14 @@ export function SpotifyProvider({ children }) {
       if (res.ok) {
         const data = await res.json();
         setSpotifyUser(data);
-      } else if (res.status === 401) {
-        clearSession();
+      } else {
+        const errorText = await res.text();
+        console.error("Error fetching user profile:", res.status, errorText);
+        if (res.status === 403) {
+          alert("Access Forbidden (403): Your Spotify account may not be whitelisted in the Spotify Developer Dashboard for this app.\n\nSince your app is in 'Development' mode, you must add your Spotify account email under 'Users and Roles' in the Spotify App settings.");
+        } else if (res.status === 401) {
+          clearSession();
+        }
       }
     } catch (err) {
       console.error("Error fetching user profile:", err);
@@ -265,9 +271,18 @@ export function SpotifyProvider({ children }) {
       if (res.ok) {
         const data = await res.json();
         setUserPlaylists(data.items || []);
+      } else {
+        const errorText = await res.text();
+        console.error("Error fetching playlists:", res.status, errorText);
+        if (res.status === 403) {
+          alert("Access Forbidden (403): Your Spotify account may not be whitelisted in the Spotify Developer Dashboard for this app.\n\nPlease go to your Spotify Developer Dashboard -> Users and Roles, and whitelist the email address of this Spotify account.");
+        } else {
+          alert(`Error fetching playlists (${res.status}): ${errorText}`);
+        }
       }
     } catch (err) {
       console.error("Error fetching playlists:", err);
+      alert(`Network error fetching playlists: ${err.message || err}`);
     } finally {
       setIsLoadingPlaylists(false);
     }
@@ -394,13 +409,24 @@ export function SpotifyProvider({ children }) {
           ...t,
           ...(features[t.id] || { bpm: 120, camelotCode: '8A', keyName: 'Am', keyFullName: 'A Minor', energy: 0.5, danceability: 0.5, valence: 0.5 })
         }));
+      } else {
+        const errorText = await res.text();
+        console.error("Error searching tracks:", res.status, errorText);
+        if (res.status === 403) {
+          alert("Access Forbidden (403): Your Spotify account may not be whitelisted in the Spotify Developer Dashboard for this app.\n\nPlease go to your Spotify Developer Dashboard -> Users and Roles, and whitelist the email address of this Spotify account.");
+        } else {
+          alert(`Error searching tracks (${res.status}): ${errorText}`);
+        }
       }
       return [];
     } catch (err) {
       console.error("Error searching tracks:", err);
+      alert(`Network error searching tracks: ${err.message || err}`);
       return [];
     }
   };
+
+
 
   // Create playlist and add tracks
   const exportPlaylist = async (name, trackIds) => {
