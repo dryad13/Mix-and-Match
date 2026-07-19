@@ -25,6 +25,8 @@ export default function SpotifyTrackFinder() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [searchOffset, setSearchOffset] = useState(0);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState('');
   const [playlistTracks, setPlaylistTracks] = useState([]);
   const [isLoadingTracks, setIsLoadingTracks] = useState(false);
@@ -39,13 +41,38 @@ export default function SpotifyTrackFinder() {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setIsSearching(true);
+    setSearchOffset(0);
+    
+    // Clear playlist state to show search results
+    setSelectedPlaylistId('');
+    setPlaylistTracks([]);
+    
     try {
-      const results = await searchTracks(searchQuery);
-      setSearchResults(results);
+      const results = await searchTracks(searchQuery, 0);
+      setSearchResults(results || []);
     } catch (err) {
       console.error(err);
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const handleLoadMoreSearch = async () => {
+    if (isLoadingMore || !searchQuery.trim()) return;
+    setIsLoadingMore(true);
+    const nextOffset = searchOffset + 10;
+    try {
+      const results = await searchTracks(searchQuery, nextOffset);
+      if (results && results.length > 0) {
+        setSearchResults(prev => [...prev, ...results]);
+        setSearchOffset(nextOffset);
+      } else {
+        alert("No more search results found.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -56,15 +83,29 @@ export default function SpotifyTrackFinder() {
       setPlaylistTracks([]);
       return;
     }
+    
+    // Clear search state to show playlist tracks
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchOffset(0);
+    
     setIsLoadingTracks(true);
     try {
       const tracks = await getPlaylistTracks(id);
-      setPlaylistTracks(tracks);
+      setPlaylistTracks(tracks || []);
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoadingTracks(false);
     }
+  };
+
+  const handleClearView = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchOffset(0);
+    setSelectedPlaylistId('');
+    setPlaylistTracks([]);
   };
 
   const loadToDeck = (deck, track) => {
@@ -256,7 +297,6 @@ export default function SpotifyTrackFinder() {
             <select
               value={selectedPlaylistId}
               onChange={handleSelectPlaylist}
-              onClick={userPlaylists.length === 0 ? fetchPlaylists : undefined}
               className="flex-1 bg-spotifyBlack border border-borderBg rounded-xl px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-spotifyGreen cursor-pointer"
             >
               <option value="">-- Load Playlist --</option>
@@ -268,8 +308,37 @@ export default function SpotifyTrackFinder() {
                 ))
               )}
             </select>
+            <button
+              type="button"
+              onClick={fetchPlaylists}
+              disabled={isLoadingPlaylists}
+              className="px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition duration-200 flex items-center justify-center"
+              title="Refresh Playlists"
+            >
+              <i className={`fa-solid fa-rotate-right ${isLoadingPlaylists ? 'animate-spin' : ''}`}></i>
+            </button>
           </div>
         </div>
+
+        {/* Active View Indicator */}
+        {(searchResults.length > 0 || playlistTracks.length > 0) && (
+          <div className="flex items-center justify-between text-[11px] text-zinc-400 px-1 py-0.5 border-t border-borderBg/20 pt-2">
+            <span>
+              Showing: {searchResults.length > 0 ? (
+                <span>Search results for <span className="text-spotifyGreen font-semibold">"{searchQuery || 'recent search'}"</span></span>
+              ) : (
+                <span>Playlist: <span className="text-spotifyGreen font-semibold">{userPlaylists.find(p => p.id === selectedPlaylistId)?.name || 'Selected Playlist'}</span></span>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={handleClearView}
+              className="text-[10px] text-zinc-500 hover:text-rose-400 font-bold flex items-center gap-1 transition"
+            >
+              <i className="fa-solid fa-xmark"></i> Clear view
+            </button>
+          </div>
+        )}
 
         {/* Tracks List */}
         <div className="flex-grow max-h-[360px] overflow-y-auto border border-borderBg rounded-xl bg-spotifyBlack/40">
@@ -329,6 +398,27 @@ export default function SpotifyTrackFinder() {
                   </div>
                 </div>
               ))}
+
+              {/* Load More search results button */}
+              {searchResults.length > 0 && (
+                <div className="p-2.5 flex justify-center bg-spotifyBlack/20">
+                  <button
+                    onClick={handleLoadMoreSearch}
+                    disabled={isLoadingMore}
+                    className="px-4 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-200 font-bold rounded-full transition flex items-center gap-2"
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <i className="fa-solid fa-spinner animate-spin"></i> Loading More...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-arrow-down"></i> Load More Tracks
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               {/* If playlist tracks are showing */}
               {playlistTracks.length > 0 && searchResults.length === 0 && playlistTracks.map(track => (
