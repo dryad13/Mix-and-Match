@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { getCamelotKey } from '../utils/camelot';
 
 const SpotifyContext = createContext();
@@ -16,73 +16,214 @@ const SCOPES = [
   'user-library-read'
 ].join(' ');
 
+// Cryptographic helpers for PKCE
+function generateRandomString(length) {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const values = crypto.getRandomValues(new Uint8Array(length));
+  return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+}
+
+async function sha256(plain) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(plain);
+  return window.crypto.subtle.digest('SHA-256', data);
+}
+
+function base64urlencode(a) {
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(a)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+async function generateCodeChallenge(v) {
+  const hashed = await sha256(v);
+  return base64urlencode(hashed);
+}
+
 export function SpotifyProvider({ children }) {
   const [token, setToken] = useState(null);
   const [userPlaylists, setUserPlaylists] = useState([]);
   const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false);
   const [spotifyUser, setSpotifyUser] = useState(null);
-
-  // Authentication: Check URL hash or localStorage for access token
-  useEffect(() => {
-    // 1. Check local storage
-    const storedToken = localStorage.getItem('spotify_access_token');
-    const storedExpiry = localStorage.getItem('spotify_token_expiry');
-    const now = Date.now();
-
-    if (storedToken && storedExpiry && now < Number(storedExpiry)) {
-      setToken(storedToken);
-      fetchUserProfile(storedToken);
-      // Set timeout for expiry
-      const remainingTime = Number(storedExpiry) - now;
-      setupTokenExpiryTimeout(remainingTime);
-    } else {
-      // Clean expired token if it exists
-      clearSession();
-      
-      // 2. Parse URL hash
-      const hash = window.location.hash;
-      if (hash) {
-        const params = new URLSearchParams(hash.substring(1));
-        const accessToken = params.get('access_token');
-        const expiresIn = params.get('expires_in');
-
-        if (accessToken) {
-          const expiryTime = Date.now() + Number(expiresIn) * 1000;
-          localStorage.setItem('spotify_access_token', accessToken);
-          localStorage.setItem('spotify_token_expiry', String(expiryTime));
-          setToken(accessToken);
-          fetchUserProfile(accessToken);
-          setupTokenExpiryTimeout(Number(expiresIn) * 1000);
-          
-          // Clear hash from address bar
-          window.history.pushState("", document.title, window.location.pathname + window.location.search);
-        }
-      }
-    }
-  }, []);
-
-  const setupTokenExpiryTimeout = (delayMs) => {
-    setTimeout(() => {
-      alert("Spotify access token expired. Please log in again.");
-      clearSession();
-    }, delayMs);
-  };
+  const timeoutRef = useRef(null);
 
   const clearSession = () => {
     localStorage.removeItem('spotify_access_token');
     localStorage.removeItem('spotify_token_expiry');
+    localStorage.removeItem('spotify_refresh_token');
+    localStorage.removeItem('spotify_code_verifier');
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
     setToken(null);
     setSpotifyUser(null);
     setUserPlaylists([]);
   };
 
-  const handleLogin = () => {
+  const setupTokenExpiryTimeout = (delayMs) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      refreshAccessToken();
+    }, delayMs);
+  };
+
+  const fetchAccessToken = async (code) => {
+    const codeVerifier = localStorage.getItem('spotify_code_verifier');
+    if (!codeVerifier) {
+      console.error("Code verifier not found in localStorage");
+      clearSession();
+      return;
+    }
+
+    try {
+      const response = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: CLIENT_ID,
+          grant_type: 'authorization_code',
+          code: code,
+          redirect_uri: REDIRECT_URI,
+          code_verifier: codeVerifier,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const { access_token, refresh_token, expires_in } = data;
+        const expiryTime = Date.now() + Number(expires_in) * 1000;
+
+        localStorage.setItem('spotify_access_token', access_token);
+        localStorage.setItem('spotify_token_expiry', String(expiryTime));
+        if (refresh_token) {
+          localStorage.setItem('spotify_refresh_token', refresh_token);
+        }
+
+        setToken(access_token);
+        await fetchUserProfile(access_token);
+        setupTokenExpiryTimeout(Number(expires_in) * 1000);
+
+        // Clear code/state from URL parameters securely
+        const url = new URL(window.location.href);
+        url.searchParams.delete('code');
+        url.searchParams.delete('state');
+        window.history.pushState({}, document.title, url.pathname + url.search);
+      } else {
+        console.error("Failed to exchange code for token:", await response.text());
+        clearSession();
+      }
+    } catch (err) {
+      console.error("Error exchanging code for token:", err);
+      clearSession();
+    }
+  };
+
+  const refreshAccessToken = async () => {
+    const refreshToken = localStorage.getItem('spotify_refresh_token');
+    if (!refreshToken) {
+      clearSession();
+      return;
+    }
+
+    try {
+      const response = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: CLIENT_ID,
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const { access_token, refresh_token: newRefreshToken, expires_in } = data;
+        const expiryTime = Date.now() + Number(expires_in) * 1000;
+
+        localStorage.setItem('spotify_access_token', access_token);
+        localStorage.setItem('spotify_token_expiry', String(expiryTime));
+        if (newRefreshToken) {
+          localStorage.setItem('spotify_refresh_token', newRefreshToken);
+        }
+
+        setToken(access_token);
+        await fetchUserProfile(access_token);
+        setupTokenExpiryTimeout(Number(expires_in) * 1000);
+      } else {
+        console.error("Failed to refresh token:", await response.text());
+        clearSession();
+      }
+    } catch (err) {
+      console.error("Error refreshing token:", err);
+      clearSession();
+    }
+  };
+
+  // Authentication: Check URL params or localStorage for existing session
+  useEffect(() => {
+    const checkAuth = async () => {
+      // 1. Check if returning from Spotify auth redirect (URL contains '?code=...')
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      if (code) {
+        await fetchAccessToken(code);
+        return;
+      }
+
+      // 2. Check local storage
+      const storedToken = localStorage.getItem('spotify_access_token');
+      const storedExpiry = localStorage.getItem('spotify_token_expiry');
+      const refreshToken = localStorage.getItem('spotify_refresh_token');
+      const now = Date.now();
+
+      if (storedToken && storedExpiry && now < Number(storedExpiry)) {
+        setToken(storedToken);
+        await fetchUserProfile(storedToken);
+        const remainingTime = Number(storedExpiry) - now;
+        setupTokenExpiryTimeout(remainingTime);
+      } else if (refreshToken) {
+        await refreshAccessToken();
+      } else {
+        clearSession();
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const handleLogin = async () => {
     if (!CLIENT_ID || CLIENT_ID === 'your_spotify_client_id_here') {
       alert("Please configure your VITE_SPOTIFY_CLIENT_ID environment variable in .env.local!");
       return;
     }
-    const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=${encodeURIComponent(SCOPES)}&show_dialog=true`;
-    window.location.href = authUrl;
+
+    try {
+      const verifier = generateRandomString(64);
+      const challenge = await generateCodeChallenge(verifier);
+      localStorage.setItem('spotify_code_verifier', verifier);
+
+      const params = new URLSearchParams({
+        client_id: CLIENT_ID,
+        response_type: 'code',
+        redirect_uri: REDIRECT_URI,
+        code_challenge_method: 'S256',
+        code_challenge: challenge,
+        scope: SCOPES
+      });
+
+      window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+    } catch (err) {
+      console.error("Error generating PKCE code challenge:", err);
+      alert("Failed to initiate Spotify login. Please try again.");
+    }
   };
 
   const handleLogout = () => {
