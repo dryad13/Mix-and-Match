@@ -288,6 +288,13 @@ export function SpotifyProvider({ children }) {
     }
   };
 
+  // Automatically fetch playlists when token changes/becomes available
+  useEffect(() => {
+    if (token) {
+      fetchPlaylists();
+    }
+  }, [token]);
+
   // Fetch track metadata + audio features (BPM, keys)
   const fetchTrackAudioFeatures = async (trackIds) => {
     if (!token || !trackIds || trackIds.length === 0) return {};
@@ -387,7 +394,7 @@ export function SpotifyProvider({ children }) {
   const searchTracks = async (query) => {
     if (!token || !query) return [];
     try {
-      const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=20`, {
+      const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
